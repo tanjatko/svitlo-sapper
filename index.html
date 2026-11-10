@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Сапер відключень</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+<style>
+/* Layout: one Win95-style window, toolbar on top, 12×24 board (черги × години), status bar below. Deliberately single-theme. */
+:root{
+  --desk:#3a6e8f; --face:#c3c3c3; --hi:#ffffff; --lo:#7b7b7b; --dk:#000000;
+  --title1:#0a1f7a; --title2:#2f6bd4; --lcd:#1a0000; --lcdtxt:#ff2a1a;
+  --sun:#ffc800; --flag:#d40000; --boom:#ff3b30; --mine:#ffd9d6; --mine-row:#e9e1a8;
+  --ui:Tahoma,Verdana,"Segoe UI",sans-serif; --lcdf:"VT323","Courier New",monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--desk);color:var(--dk);font-family:var(--ui);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px;box-sizing:border-box}
+.win{max-width:1180px;margin:0 auto;background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);box-shadow:inset -1px -1px 0 var(--lo),inset 1px 1px 0 #dfdfdf;padding:3px}
+.bar{background:linear-gradient(90deg,var(--title1),var(--title2));color:var(--hi);display:flex;align-items:center;gap:10px;padding:6px 8px;font-weight:700;font-size:clamp(13px,1.8vw,19px)}
+.bar .t{flex:1;min-width:0;text-wrap:balance}
+.wbtn{width:24px;height:22px;background:var(--face);color:var(--dk);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);font:700 12px var(--ui);display:grid;place-items:center;flex:none}
+.bevel-in{border:2px solid;border-color:var(--lo) var(--hi) var(--hi) var(--lo)}
+.bevel-out{border:2px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi)}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:8px 4px}
+.panel{display:flex;align-items:center;gap:14px;padding:6px 10px;flex-wrap:wrap}
+.lcd{background:var(--lcd);color:var(--lcdtxt);font:34px/1 var(--lcdf);padding:2px 8px;letter-spacing:2px;font-variant-numeric:tabular-nums;min-width:3.2ch;text-align:right;text-shadow:0 0 6px rgba(255,42,26,.6)}
+.lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#333}
+.stack{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;font-weight:700}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:22px;height:22px;display:inline-grid;place-items:center;box-sizing:border-box;font-style:normal}
+.sw svg{width:18px;height:18px}
+.lgopen{background:#bdbdbd;border:1px solid var(--lo);font:700 15px/1 var(--ui)}
+.pb{display:flex;gap:4px}
+.pb i{width:14px;height:24px;border:2px solid #222;border-radius:2px;position:relative;background:#6fd36f}
+.pb i::before{content:"";position:absolute;top:-5px;left:3px;width:4px;height:3px;background:#222}
+.pb i.off{background:#555}
+.smile{width:46px;height:46px;font-size:28px;line-height:1;background:var(--face);cursor:pointer;display:grid;place-items:center;margin-left:auto;padding:0}
+.smile:active{border-color:var(--lo) var(--hi) var(--hi) var(--lo)}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+select,.btn{font:13px var(--ui);background:var(--face);color:var(--dk)}
+.btn{padding:4px 10px;cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--lo) var(--hi) var(--hi) var(--lo);background:#b3b3b3}
+.board-wrap{margin:4px;overflow-x:auto;padding:0}
+table{border-collapse:collapse;user-select:none;-webkit-user-select:none}
+th{font:700 12px var(--ui);background:var(--face);border:1px solid var(--lo)}
+th.h{writing-mode:vertical-rl;transform:rotate(180deg);padding:6px 2px;height:46px;font-variant-numeric:tabular-nums}
+th.h.now{background:var(--sun)}
+th.g{text-align:left;padding:0 10px;white-space:nowrap;font-size:14px;min-width:84px}
+tr.mine th.g{background:var(--mine-row)}
+th.corner{position:relative;font-weight:400;min-width:84px}
+th.corner .a{position:absolute;right:6px;top:4px;font-weight:700}
+th.corner .b{position:absolute;left:8px;bottom:4px;font-weight:700}
+td{padding:0;border:1px solid var(--lo)}
+.c{width:38px;height:36px;display:grid;place-items:center;font:700 22px/1 var(--ui);cursor:pointer;background:var(--face);border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);box-sizing:border-box}
+tr.mine .c:not(.open){background:#d6d0a6}
+.c:focus-visible{outline:2px dotted var(--dk);outline-offset:-5px}
+.c.open{border:0;background:#bdbdbd;cursor:default}
+tr.mine .c.open{background:#cfc9a0}
+.c.boom{background:var(--boom)!important}
+.c.miss{background:var(--mine)!important}
+.c svg{width:26px;height:26px}
+.n1{color:#0000f0}.n2{color:#007b00}.n3{color:#e00000}.n4{color:#00007b}.n5{color:#7b0000}.n6{color:#007b7b}.n7{color:#000}.n8{color:#7b7b7b}
+.status{display:flex;align-items:center;gap:10px;margin:6px 4px 2px;padding:6px 10px;font-size:14px;flex-wrap:wrap}
+.status .msg{flex:1;min-width:200px}
+.date{font:24px/1 var(--lcdf);padding:2px 10px;background:#e6e6e6}
+.ua{width:30px;height:20px;background:linear-gradient(#0057b7 50%,#ffd700 50%);border:1px solid #333}
+.note{max-width:1180px;margin:10px auto 0;color:#e7f1f7;font-size:12.5px;line-height:1.5}
+.over{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.35);padding:16px}
+.dlg{background:var(--face);max-width:380px;width:100%}
+.dlg .bar{font-size:14px}
+.dlg .body{padding:16px;font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:12px}
+.dlg .row{display:flex;justify-content:flex-end;gap:8px}
+@media (prefers-reduced-motion:no-preference){.c.boom{animation:shake .25s}}
+@keyframes shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+</style>
+</head><body>
+
+<div class="win" role="application" aria-label="Сапер відключень">
+  <div class="bar"><span aria-hidden="true">⚡</span><span class="t">Графік відключень на 10 листопада по всіх групах (Київська обл.)</span>
+    <span class="wbtn" aria-hidden="true">_</span><span class="wbtn" aria-hidden="true">□</span><span class="wbtn" aria-hidden="true">×</span></div>
+
+  <div class="tools">
+    <div class="panel bevel-in">
+      <div class="stack"><span class="lbl">Відключень</span><div class="lcd" id="left">000</div></div>
+      <div class="stack"><span class="lbl">Час</span><div class="lcd" id="timer">000</div></div>
+      <div class="stack"><span class="lbl">Павербанки</span><div class="pb" id="pb"></div></div>
+    </div>
+    <div class="panel bevel-in legend">
+      <span><i class="sw lgopen n1">1</i>Світло є</span>
+      <span><i class="sw lgopen" id="lgbolt"></i>Світла немає</span>
+      <span><i class="sw lgopen" id="lghalf"></i>Немає частину години</span>
+      <span><i class="sw bevel-out" style="background:var(--face);display:grid;place-items:center" id="lgflag"></i>Ваш прапорець</span>
+    </div>
+    <div class="panel bevel-in ctl">
+      <label for="grp">Моя черга:</label>
+      <select id="grp" class="bevel-in"></select>
+      <button class="btn bevel-out" id="flagMode" aria-pressed="false">Режим прапорця</button>
+    </div>
+    <div class="panel bevel-in stack" style="justify-content:center"><span class="lbl">Рівень складності</span><b style="font-size:20px">Київ</b></div>
+    <button class="smile bevel-out" id="smile" aria-label="Нова гра">🙂</button>
+  </div>
+
+  <div class="board-wrap bevel-in"><table id="board"></table></div>
+
+  <div class="status bevel-in">
+    <span aria-hidden="true">💣</span><span class="msg" id="msg">Знайдіть усі відключення! Відкривайте години зі світлом, цифра показує, скільки відключень довкола.</span>
+    <span class="date bevel-in">10.11.2026</span><span class="ua" aria-hidden="true"></span>
+  </div>
+</div>
+<p class="note">Права кнопка миші або «Режим прапорця» ставить прапорець. Клік по цифрі, біля якої вже стоять усі прапорці, відкриває сусідні клітинки. Натрапили на відключення — сідає один павербанк, їх три. Половинка блискавки означає, що світла немає лише частину години. Дані: графік ДТЕК для Київської області на 10.11.2026, оновлення 09:24.</p>
+
+<div class="over" id="over" hidden>
+  <div class="dlg bevel-out" role="dialog" aria-modal="true" aria-labelledby="dlgT">
+    <div class="bar"><span class="t" id="dlgT">Сапер</span></div>
+    <div class="body"><div id="dlgTxt"></div><div class="row"><button class="btn bevel-out" id="dlgShow">Показати графік</button><button class="btn bevel-out" id="dlgNew">Ще раз</button></div></div>
+  </div>
+</div>
+
+<script>
+// X = відключення всю годину, h = частину години, . = світло є
+const DATA = {
+ "1.1":"h.....XXXXXXXXX.hXXXXXXh",
+ "1.2":"h.....XXXXXXXh.XXXXXXXXh",
+ "2.1":"XXX...XXXXXXX...hXXXXXXX",
+ "2.2":"XXh...hXXXXXXh..hXXXXXXh",
+ "3.1":"XXXXXXh..hXXXXXXh...XXXX",
+ "3.2":"XXXX..h..hXXXXXXX...XXXX",
+ "4.1":"XXXX.....hXXXXXXXXh.XXXX",
+ "4.2":"XXX.....XXXXXXXXX.hXXXXX",
+ "5.1":"..hXXXXXXXX..XXXXXXXh..h",
+ "5.2":"..hXXXX.Xh.XXXXXXXXX...h",
+ "6.1":"...hXXXXXX...XXXXXXXXX.h",
+ "6.2":"...hXXXXXX...XXXXXXXh.XX"
+};
+const GROUPS = Object.keys(DATA), R = GROUPS.length, C = 24, LIVES = 3;
+const BOLT = (half)=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="${half?'#ffc800':'#111'}" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>${half?'<path d="M4 14h7l-1 8 3.5-4.7V9H11.5" fill="#111"/>':''}<path d="M3 3 21 21" stroke="#111" stroke-width="2.4" stroke-linecap="round"/><path d="M3 3 21 21" stroke="#ffc800" stroke-width="0.9" stroke-linecap="round"/></svg>`;
+const FLAG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v16" stroke="#111" stroke-width="2"/><path d="M8 3 18 7.5 8 12z" fill="#d40000"/><path d="M5 20h8v2H5z" fill="#111"/></svg>`;
+document.getElementById('lgflag').innerHTML = FLAG;
+document.getElementById('lgbolt').innerHTML = BOLT(false);
+document.getElementById('lghalf').innerHTML = BOLT(true);
+
+const mine = (r,c)=>DATA[GROUPS[r]][c] !== '.';
+const half = (r,c)=>DATA[GROUPS[r]][c] === 'h';
+let st, tick=null, flagMode=false;
+const totalMines = GROUPS.reduce((s,g)=>s+[...DATA[g]].filter(x=>x!=='.').length,0);
+const totalSafe = R*C - totalMines;
+
+function neighbours(r,c){const o=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const a=r+dr,b=c+dc;if(a>=0&&a<R&&b>=0&&b<C)o.push([a,b]);}return o;}
+const count=(r,c)=>neighbours(r,c).filter(([a,b])=>mine(a,b)).length;
+
+function kyivHour(){try{return +new Intl.DateTimeFormat('uk-UA',{hour:'2-digit',hour12:false,timeZone:'Europe/Kyiv'}).format(new Date())%24;}catch(e){return -1;}}
+
+function build(){
+  const t=document.getElementById('board');const now=kyivHour();
+  let h='<thead><tr><th class="corner"><span class="a">Час</span><span class="b">Група</span></th>';
+  for(let c=0;c<C;c++)h+=`<th class="h${c===now?' now':''}" scope="col" title="${c===now?'Зараз':''}">${String(c).padStart(2,'0')}-${String(c+1).padStart(2,'0')}</th>`;
+  h+='</tr></thead><tbody>';
+  for(let r=0;r<R;r++){h+=`<tr data-r="${r}"><th class="g" scope="row">Група ${GROUPS[r]}</th>`;
+    for(let c=0;c<C;c++)h+=`<td><div class="c" id="c${r}_${c}" data-r="${r}" data-c="${c}" tabindex="0" role="button" aria-label="Група ${GROUPS[r]}, ${c}:00–${c+1}:00"></div></td>`;
+    h+='</tr>';}
+  t.innerHTML=h+'</tbody>';
+}
+
+function reset(){
+  st={open:new Set(),flag:new Set(),lives:LIVES,safeOpen:0,time:0,over:false,started:false};
+  clearInterval(tick);tick=null;
+  document.querySelectorAll('.c').forEach(el=>{el.className='c';el.innerHTML='';});
+  document.getElementById('smile').textContent='🙂';
+  document.getElementById('over').hidden=true;
+  setMsg('Знайдіть усі відключення! Відкривайте години зі світлом, цифра показує, скільки відключень довкола.');
+  hud();
+}
+const key=(r,c)=>r+'_'+c, cell=(r,c)=>document.getElementById('c'+key(r,c));
+const setMsg=t=>document.getElementById('msg').textContent=t;
+function hud(){
+  const found=[...st.open].filter(k=>{const[r,c]=k.split('_').map(Number);return mine(r,c);}).length;
+  document.getElementById('left').textContent=String(Math.max(0,totalMines-st.flag.size-found)).padStart(3,'0');
+  document.getElementById('timer').textContent=String(Math.min(999,st.time)).padStart(3,'0');
+  document.getElementById('pb').innerHTML=Array.from({length:LIVES},(_,i)=>`<i class="${i<st.lives?'':'off'}"></i>`).join('');
+}
+function startClock(){if(st.started)return;st.started=true;tick=setInterval(()=>{st.time++;hud();},1000);}
+
+function paint(r,c){
+  const el=cell(r,c);el.classList.add('open');el.className=el.className.replace(/n\d/g,'');
+  if(mine(r,c)){el.innerHTML=BOLT(half(r,c));}
+  else{const n=count(r,c);el.textContent=n||'';if(n)el.classList.add('n'+n);}
+}
+function open(r,c){
+  if(st.over)return;const k=key(r,c);if(st.open.has(k)||st.flag.has(k))return;
+  startClock();
+  if(mine(r,c)){
+    st.open.add(k);paint(r,c);const el=cell(r,c);el.classList.add('boom');
+    st.lives--;hud();
+    const g=GROUPS[r],hr=`${String(c).padStart(2,'0')}:00–${String(c+1).padStart(2,'0')}:00`;
+    if(st.lives<=0){lose(g,hr);return;}
+    document.getElementById('smile').textContent='😬';setTimeout(()=>{if(!st.over)document.getElementById('smile').textContent='🙂';},700);
+    setMsg(`Група ${g}, ${hr}: світла немає${half(r,c)?' (частину години)':''}. Павербанків лишилось: ${st.lives}.`);
+    checkWin();return;
+  }
+  const q=[[r,c]];
+  while(q.length){const[a,b]=q.pop();const kk=key(a,b);if(st.open.has(kk)||st.flag.has(kk)||mine(a,b))continue;
+    st.open.add(kk);st.safeOpen++;paint(a,b);if(count(a,b)===0)q.push(...neighbours(a,b));}
+  hud();checkWin();
+}
+function chord(r,c){
+  if(mine(r,c))return;const n=count(r,c);if(!n)return;
+  const nb=neighbours(r,c);const marked=nb.filter(([a,b])=>st.flag.has(key(a,b))||(mine(a,b)&&st.open.has(key(a,b)))).length;
+  if(marked===n)nb.forEach(([a,b])=>open(a,b));
+}
+function toggleFlag(r,c){
+  if(st.over)return;const k=key(r,c);if(st.open.has(k))return;startClock();
+  const el=cell(r,c);if(st.flag.has(k)){st.flag.delete(k);el.innerHTML='';}else{st.flag.add(k);el.innerHTML=FLAG;}
+  hud();
+}
+function revealAll(){
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){const k=key(r,c);const el=cell(r,c);
+    if(st.flag.has(k)&&!mine(r,c)){el.classList.add('open','miss');el.textContent='✕';continue;}
+    if(!st.open.has(k)){if(mine(r,c)&&st.flag.has(k))continue;paint(r,c);}}
+}
+function end(title,txt,face){
+  st.over=true;clearInterval(tick);document.getElementById('smile').textContent=face;
+  document.getElementById('dlgT').textContent=title;document.getElementById('dlgTxt').innerHTML=txt;
+  document.getElementById('over').hidden=false;document.getElementById('dlgNew').focus();
+}
+function lose(g,hr){
+  revealAll();setMsg(`Павербанки сіли на групі ${g}, ${hr}. Ось повний графік на сьогодні.`);
+  end('Світла немає',`Останній павербанк сів на <b>групі ${g}</b>, ${hr}.<br>Відкрито годин зі світлом: ${st.safeOpen} з ${totalSafe}.`,'😵');
+}
+function checkWin(){
+  if(st.safeOpen<totalSafe)return;
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++)if(mine(r,c)&&!st.open.has(key(r,c))){st.flag.add(key(r,c));cell(r,c).innerHTML=FLAG;}
+  hud();setMsg(`Усі ${totalSafe} годин зі світлом знайдено за ${st.time} с.`);
+  end('Перемога',`Ви знайшли всі <b>${totalSafe}</b> годин зі світлом за <b>${st.time} с</b>, витративши ${LIVES-st.lives} павербанк(и).`,'😎');
+}
+
+// controls
+const board=document.getElementById('board');
+function act(el,alt){if(!el||!el.classList.contains('c'))return;const r=+el.dataset.r,c=+el.dataset.c;
+  if(st.open.has(key(r,c))){chord(r,c);return;}
+  (alt||flagMode)?toggleFlag(r,c):open(r,c);}
+board.addEventListener('click',e=>act(e.target.closest('.c'),false));
+board.addEventListener('contextmenu',e=>{const el=e.target.closest('.c');if(el){e.preventDefault();act(el,true);}});
+board.addEventListener('keydown',e=>{const el=e.target.closest('.c');if(!el)return;
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();act(el,false);}else if(e.key==='f'||e.key==='а'){act(el,true);}
+  else{const d={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[e.key];if(d){e.preventDefault();const n=cell(Math.min(R-1,Math.max(0,+el.dataset.r+d[0])),Math.min(C-1,Math.max(0,+el.dataset.c+d[1])));n&&n.focus();}}});
+let lp=null;board.addEventListener('touchstart',e=>{const el=e.target.closest('.c');if(!el)return;lp=setTimeout(()=>{lp='done';act(el,true);},450);},{passive:true});
+board.addEventListener('touchend',e=>{if(lp==='done'){e.preventDefault();}clearTimeout(lp);lp=null;});
+board.addEventListener('touchmove',()=>{clearTimeout(lp);lp=null;},{passive:true});
+board.addEventListener('mousedown',e=>{if(e.button===0&&e.target.closest('.c:not(.open)')&&!st.over)document.getElementById('smile').textContent='😮';});
+document.addEventListener('mouseup',()=>{if(!st.over&&document.getElementById('smile').textContent==='😮')document.getElementById('smile').textContent='🙂';});
+document.getElementById('smile').onclick=reset;
+document.getElementById('dlgNew').onclick=reset;
+document.getElementById('dlgShow').onclick=()=>{document.getElementById('over').hidden=true;};
+const fm=document.getElementById('flagMode');fm.onclick=()=>{flagMode=!flagMode;fm.setAttribute('aria-pressed',flagMode);};
+
+const sel=document.getElementById('grp');
+sel.innerHTML='<option value="">не обрано</option>'+GROUPS.map(g=>`<option>${g}</option>`).join('');
+function markGroup(g){document.querySelectorAll('tbody tr').forEach(tr=>tr.classList.toggle('mine',GROUPS[+tr.dataset.r]===g));}
+sel.onchange=()=>{markGroup(sel.value);try{localStorage.setItem('grp',sel.value);}catch(e){}};
+
+build();reset();
+try{const g=localStorage.getItem('grp');if(g&&DATA[g]){sel.value=g;markGroup(g);}}catch(e){}
+</script>
+</body></html>
