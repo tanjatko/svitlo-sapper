@@ -37,7 +37,11 @@ body{background:var(--desk);color:var(--dk);font-family:var(--ui);
 .pb i{width:14px;height:24px;border:2px solid #222;border-radius:2px;position:relative;background:#6fd36f}
 .pb i::before{content:"";position:absolute;top:-5px;left:3px;width:4px;height:3px;background:#222}
 .pb i.off{background:#555}
-.smile{width:46px;height:46px;font-size:28px;line-height:1;background:var(--face);cursor:pointer;display:grid;place-items:center;margin-left:auto;padding:0}
+.smile{width:46px;height:46px;font-size:28px;line-height:1;background:var(--face);cursor:pointer;display:grid;place-items:center;padding:0}
+.hdr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:8px 4px 0;padding:6px 10px}
+.hdr .side{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.hdr .side.end{justify-content:flex-end}
+.hdr .side.end .stack{align-items:flex-end}
 .smile:active{border-color:var(--lo) var(--hi) var(--hi) var(--lo)}
 .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
 select,.btn{font:13px var(--ui);background:var(--face);color:var(--dk)}
@@ -82,12 +86,17 @@ tr.mine .c.open{background:#cfc9a0}
   <div class="bar"><span aria-hidden="true">⚡</span><span class="t" id="ttl">Графік відключень на 10 листопада по всіх групах (Київська обл.)</span>
     <span class="wbtn" aria-hidden="true">_</span><span class="wbtn" aria-hidden="true">□</span><span class="wbtn" aria-hidden="true">×</span></div>
 
-  <div class="tools">
-    <div class="panel bevel-in">
+  <div class="hdr bevel-in">
+    <div class="side">
       <div class="stack"><span class="lbl">Відключень</span><div class="lcd" id="left">000</div></div>
-      <div class="stack"><span class="lbl">Час</span><div class="lcd" id="timer">000</div></div>
       <div class="stack"><span class="lbl">Павербанки</span><div class="pb" id="pb"></div></div>
     </div>
+    <button class="smile bevel-out" id="smile" aria-label="Нова гра">🙂</button>
+    <div class="side end">
+      <div class="stack"><span class="lbl">Час</span><div class="lcd" id="timer">000</div></div>
+    </div>
+  </div>
+  <div class="tools">
     <div class="panel bevel-in legend">
       <span><i class="sw lgopen n1">1</i>Світло є</span>
       <span><i class="sw lgopen" id="lgbolt"></i>Світла немає</span>
@@ -100,7 +109,6 @@ tr.mine .c.open{background:#cfc9a0}
       <button class="btn bevel-out" id="flagMode" aria-pressed="false">Режим прапорця</button>
     </div>
     <div class="panel bevel-in stack" style="justify-content:center"><span class="lbl">Рівень складності</span><b style="font-size:20px">Київ</b></div>
-    <button class="smile bevel-out" id="smile" aria-label="Нова гра">🙂</button>
   </div>
 
   <div class="board-wrap bevel-in"><table id="board"></table></div>
