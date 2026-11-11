@@ -70,7 +70,15 @@ tr.mine .c.open{background:#cfc9a0}
 .c svg{width:var(--cs,26px);height:var(--cs,26px)}
 .compact .c{border-width:2px}
 .rotate-hint{display:none;margin:0 4px 6px;padding:6px 10px;font-size:13px;background:#fff6c2}
-@media (orientation:portrait) and (max-width:700px){.rotate-hint{display:block}}
+@media (orientation:portrait) and (max-width:700px){.rotate-hint{display:flex}}
+.rotate-hint{align-items:center;gap:10px;flex-wrap:wrap}
+.rotate-hint .btn{font-weight:700}
+.rotbar{display:none;align-items:center;gap:10px;padding:4px 6px;font-size:13px}
+.rotbar .sp{flex:1}
+body.rot{overflow:hidden}
+body.rot #stage{position:fixed;top:0;transform:rotate(90deg);transform-origin:top left;z-index:50;background:var(--face);display:flex;flex-direction:column;box-sizing:border-box;padding:4px}
+body.rot .rotbar{display:flex}
+body.rot .board-wrap{margin:0;overflow:hidden}
 .n1{color:#0000f0}.n2{color:#007b00}.n3{color:#e00000}.n4{color:#00007b}.n5{color:#7b0000}.n6{color:#007b7b}.n7{color:#000}.n8{color:#7b7b7b}
 .status{display:flex;align-items:center;gap:10px;margin:6px 4px 2px;padding:6px 10px;font-size:14px;flex-wrap:wrap}
 .status .msg{flex:1;min-width:200px}
@@ -116,8 +124,11 @@ tr.mine .c.open{background:#cfc9a0}
     <div class="panel bevel-in stack" style="justify-content:center"><span class="lbl">Рівень складності</span><b style="font-size:20px">Київ</b></div>
   </div>
 
-  <div class="rotate-hint bevel-in">📱↻ Поверніть телефон горизонтально, щоб бачити весь графік без прокрутки.</div>
-  <div class="board-wrap bevel-in"><table id="board"></table></div>
+  <div class="rotate-hint bevel-in"><span>📱 Щоб бачити весь графік без прокрутки, поверніть телефон або натисніть</span><button class="btn bevel-out" id="rotBtn">↻ Повернути гру</button></div>
+  <div id="stage">
+    <div class="rotbar"><span class="pb" id="pb2"></span><span class="sp" id="msg2"></span><button class="btn bevel-out" id="flag2" aria-pressed="false">Прапорець</button><button class="btn bevel-out" id="rotClose">✕ Назад</button></div>
+    <div class="board-wrap bevel-in"><table id="board"></table></div>
+  </div>
 
   <div class="status bevel-in">
     <span aria-hidden="true">💣</span><span class="msg" id="msg">Знайдіть усі відключення! Відкривайте години зі світлом, цифра показує, скільки відключень довкола.</span>
@@ -194,7 +205,8 @@ function hud(){
   const found=[...st.open].filter(k=>{const[r,c]=k.split('_').map(Number);return mine(r,c);}).length;
   document.getElementById('left').textContent=String(Math.max(0,totalMines-st.flag.size-found)).padStart(3,'0');
   document.getElementById('timer').textContent=String(Math.min(999,st.time)).padStart(3,'0');
-  document.getElementById('pb').innerHTML=Array.from({length:LIVES},(_,i)=>`<i class="${i<st.lives?'':'off'}"></i>`).join('');
+  document.getElementById('pb').innerHTML=document.getElementById('pb2').innerHTML=Array.from({length:LIVES},(_,i)=>`<i class="${i<st.lives?'':'off'}"></i>`).join('');
+  const m2=document.getElementById('msg2');if(m2)m2.textContent=`Відключень: ${Math.max(0,totalMines-st.flag.size-found)} · ${Math.min(999,st.time)} с`;
 }
 function startClock(){if(st.started)return;st.started=true;tick=setInterval(()=>{st.time++;hud();},1000);}
 
@@ -269,7 +281,8 @@ document.addEventListener('mouseup',()=>{if(!st.over&&document.getElementById('s
 document.getElementById('smile').onclick=reset;
 document.getElementById('dlgNew').onclick=reset;
 document.getElementById('dlgShow').onclick=()=>{document.getElementById('over').hidden=true;};
-const fm=document.getElementById('flagMode');fm.onclick=()=>{flagMode=!flagMode;fm.setAttribute('aria-pressed',flagMode);};
+const fm=document.getElementById('flagMode'),f2=document.getElementById('flag2');
+fm.onclick=f2.onclick=()=>{flagMode=!flagMode;fm.setAttribute('aria-pressed',flagMode);f2.setAttribute('aria-pressed',flagMode);};
 
 const sel=document.getElementById('grp');
 sel.innerHTML='<option value="">не обрано</option>'+GROUPS.map(g=>`<option>${g}</option>`).join('');
@@ -281,12 +294,15 @@ build();reset();
 // підганяємо розмір клітинок під екран, щоб уся таблиця влазила без прокрутки
 function fit(){
   const wrap=document.querySelector('.board-wrap'), tbl=document.getElementById('board');
-  const W=wrap.clientWidth-4, H=window.innerHeight;
+  const rot=document.body.classList.contains('rot'), stage=document.getElementById('stage');
+  if(rot){stage.style.width=innerHeight+'px';stage.style.height=innerWidth+'px';stage.style.left=innerWidth+'px';}
+  else stage.removeAttribute('style');
+  const W=rot?innerHeight-12:wrap.clientWidth-4, H=rot?innerWidth-document.querySelector('.rotbar').offsetHeight-6:window.innerHeight;
   const compact=W<1000; tbl.classList.toggle('compact',compact);
   const gcol=compact?40:86;
   let cw=Math.floor((W-gcol)/C)-1; cw=Math.max(18,Math.min(38,cw));
   let ch=Math.min(36,cw);
-  const landscapePhone=H<560&&window.innerWidth>H;
+  const landscapePhone=rot||(H<560&&window.innerWidth>H);
   let hh=compact?34:46;
   if(landscapePhone){hh=30;ch=Math.max(16,Math.min(ch,Math.floor((H-hh-14)/R)-1));}
   const st=tbl.style, m=Math.min(cw,ch);
@@ -294,7 +310,10 @@ function fit(){
   st.setProperty('--cf',Math.round(m*0.6)+'px');st.setProperty('--cs',Math.round(m*0.72)+'px');
   st.setProperty('--hh',hh+'px');st.setProperty('--hf',(compact?9:12)+'px');
 }
-let fitT;function refit(){clearTimeout(fitT);fitT=setTimeout(fit,80);}
+function setRot(on){document.body.classList.toggle('rot',on);fit();}
+document.getElementById('rotBtn').onclick=()=>setRot(true);
+document.getElementById('rotClose').onclick=()=>setRot(false);
+let fitT;function refit(){clearTimeout(fitT);fitT=setTimeout(()=>{if(innerWidth>innerHeight&&document.body.classList.contains('rot'))document.body.classList.remove('rot');fit();},80);}
 window.addEventListener('resize',refit);
 let wasLand=window.innerWidth>window.innerHeight;
 window.addEventListener('orientationchange',()=>setTimeout(()=>{fit();
