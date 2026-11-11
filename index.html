@@ -345,30 +345,26 @@ fetch('https://raw.githubusercontent.com/Baskerville42/outage-data-ua/main/data/
  .catch(()=>{setMsg('Не вдалося завантажити свіжий графік, тому гра йде на збереженому графіку за 10 листопада.');});
 try{const g=localStorage.getItem('grp');if(g&&DATA[g]){sel.value=g;markGroup(g);}}catch(e){}
 
-// лічильник унікальних гравців: кожен браузер рахується один раз; кілька безкоштовних сервісів по черзі
+// лічильник унікальних гравців (Abacus): кожен браузер рахується один раз
 (function(){
-  const K='tanjatko-svitlo-sapper-players';
-  const svc=[
-    {id:'mh',  url:(hit)=>`https://countapi.mileshilliard.com/api/v1/${hit?'hit':'get'}/${K}`},
-    {id:'ab2', url:(hit)=>`https://abacus.jsn.cam/${hit?'hit':'get'}/tanjatko-svitlo-sapper/players`},
-    {id:'ab',  url:(hit)=>`https://abacus.jasoncameron.dev/${hit?'hit':'get'}/tanjatko-svitlo-sapper/players`}
-  ];
+  const URL_='https://abacus.jasoncameron.dev/', NS='tanjatko-svitlo-sapper/players';
   const box=document.getElementById('players'), out=document.getElementById('pcount');
   box.hidden=false; out.textContent='…';
-  let done='';try{done=localStorage.getItem('counted_by')||'';}catch(e){}
-  const tryAt=i=>{
-    if(i>=svc.length){out.textContent='—';box.title='Лічильник зараз недоступний (можливо, його блокує блокувальник реклами)';return;}
-    const sv=svc[i], hit=done!==sv.id;
-    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),6000);
-    fetch(sv.url(hit),{signal:ctl.signal,cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{
+  let counted=false;
+  try{counted=localStorage.getItem('counted')==='1'||localStorage.getItem('counted_by')==='ab';}catch(e){}
+  const go=(attempt)=>{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),8000);
+    fetch(URL_+(counted?'get/':'hit/')+NS,{signal:ctl.signal,cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{
       clearTimeout(t);
-      const v=Number(d&&d.value);
-      if(!Number.isFinite(v))throw 'bad';
-      try{localStorage.setItem('counted_by',sv.id);}catch(e){}
+      const v=Number(d&&d.value);if(!Number.isFinite(v))throw 'bad';
+      try{localStorage.setItem('counted','1');}catch(e){}
       out.textContent=v.toLocaleString('uk-UA');
-    }).catch(()=>{clearTimeout(t);tryAt(i+1);});
+    }).catch(()=>{clearTimeout(t);
+      if(attempt<2)setTimeout(()=>go(attempt+1),2500*(attempt+1));
+      else{out.textContent='—';box.title='Лічильник зараз недоступний. Спробуйте оновити сторінку пізніше.';}
+    });
   };
-  tryAt(0);
+  go(0);
 })();
 </script>
 </body></html>
