@@ -79,7 +79,7 @@ tr.mine .c.open{background:#cfc9a0}
 </head><body>
 
 <div class="win" role="application" aria-label="Сапер відключень">
-  <div class="bar"><span aria-hidden="true">⚡</span><span class="t">Графік відключень на 10 листопада по всіх групах (Київська обл.)</span>
+  <div class="bar"><span aria-hidden="true">⚡</span><span class="t" id="ttl">Графік відключень на 10 листопада по всіх групах (Київська обл.)</span>
     <span class="wbtn" aria-hidden="true">_</span><span class="wbtn" aria-hidden="true">□</span><span class="wbtn" aria-hidden="true">×</span></div>
 
   <div class="tools">
@@ -107,10 +107,10 @@ tr.mine .c.open{background:#cfc9a0}
 
   <div class="status bevel-in">
     <span aria-hidden="true">💣</span><span class="msg" id="msg">Знайдіть усі відключення! Відкривайте години зі світлом, цифра показує, скільки відключень довкола.</span>
-    <span class="date bevel-in" id="players" hidden title="Скільки людей уже шукали світло">Шукачів світла: <span id="pcount">0</span></span><span class="date bevel-in">10.11.2026</span><span class="ua" aria-hidden="true"></span>
+    <span class="date bevel-in" id="players" hidden title="Скільки людей уже шукали світло">Шукачів світла: <span id="pcount">0</span></span><span class="date bevel-in" id="sdate">10.11.2026</span><span class="ua" aria-hidden="true"></span>
   </div>
 </div>
-<p class="note">Права кнопка миші або «Режим прапорця» ставить прапорець. Клік по цифрі, біля якої вже стоять усі прапорці, відкриває сусідні клітинки. Натрапили на відключення — сідає один павербанк, їх три. Половинка блискавки означає, що світла немає лише частину години. Дані: графік ДТЕК для Київської області на 10.11.2026, оновлення 09:24.</p>
+<p class="note">Права кнопка миші або «Режим прапорця» ставить прапорець. Клік по цифрі, біля якої вже стоять усі прапорці, відкриває сусідні клітинки. Натрапили на відключення — сідає один павербанк, їх три. Половинка блискавки означає, що світла немає лише частину години. Дані: <span id="src">графік ДТЕК для Київської області на 10.11.2026, оновлення 09:24 (збережена копія).</span></p>
 
 <div class="over" id="over" hidden>
   <div class="dlg bevel-out" role="dialog" aria-modal="true" aria-labelledby="dlgT">
@@ -121,7 +121,7 @@ tr.mine .c.open{background:#cfc9a0}
 
 <script>
 // X = відключення всю годину, h = частину години, . = світло є
-const DATA = {
+let DATA = {
  "1.1":"h.....XXXXXXXXX.hXXXXXXh",
  "1.2":"h.....XXXXXXXh.XXXXXXXXh",
  "2.1":"XXX...XXXXXXX...hXXXXXXX",
@@ -145,8 +145,9 @@ document.getElementById('lghalf').innerHTML = BOLT(true);
 const mine = (r,c)=>DATA[GROUPS[r]][c] !== '.';
 const half = (r,c)=>DATA[GROUPS[r]][c] === 'h';
 let st, tick=null, flagMode=false;
-const totalMines = GROUPS.reduce((s,g)=>s+[...DATA[g]].filter(x=>x!=='.').length,0);
-const totalSafe = R*C - totalMines;
+let totalMines, totalSafe;
+function recount(){totalMines=GROUPS.reduce((s,g)=>s+[...DATA[g]].filter(x=>x!=='.').length,0);totalSafe=R*C-totalMines;}
+recount();
 
 function neighbours(r,c){const o=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const a=r+dr,b=c+dc;if(a>=0&&a<R&&b>=0&&b<C)o.push([a,b]);}return o;}
 const count=(r,c)=>neighbours(r,c).filter(([a,b])=>mine(a,b)).length;
@@ -262,6 +263,28 @@ function markGroup(g){document.querySelectorAll('tbody tr').forEach(tr=>tr.class
 sel.onchange=()=>{markGroup(sel.value);try{localStorage.setItem('grp',sel.value);}catch(e){}};
 
 build();reset();
+
+// свіжий графік: відкрите дзеркало сайту ДТЕК (github.com/Baskerville42/outage-data-ua), оновлюється кожні кілька хвилин
+const MONTHS=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+const CODE={yes:'.',no:'X',maybe:'X',first:'h',second:'h',mfirst:'h',msecond:'h'};
+function kyivParts(ts){const o={};try{new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Kyiv',day:'2-digit',month:'2-digit',year:'numeric'}).formatToParts(new Date(ts*1000)).forEach(p=>o[p.type]=p.value);}catch(e){}return o;}
+fetch('https://raw.githubusercontent.com/Baskerville42/outage-data-ua/main/data/kyiv-region.json',{cache:'no-cache'})
+ .then(r=>r.ok?r.json():Promise.reject(r.status))
+ .then(d=>{
+   const f=d&&d.fact, day=f&&f.data&&f.data[f.today];
+   if(!day)throw 'no data';
+   const next={};
+   for(const g of GROUPS){const row=day['GPV'+g];if(!row)throw 'no group '+g;
+     next[g]=Array.from({length:24},(_,i)=>CODE[row[i+1]]??'.').join('');}
+   DATA=next;recount();
+   const p=kyivParts(f.today), dd=+p.day, mm=+p.month;
+   document.getElementById('ttl').textContent=`Графік відключень на ${dd} ${MONTHS[mm-1]} по всіх групах (Київська обл.)`;
+   document.getElementById('sdate').textContent=`${p.day}.${p.month}.${p.year}`;
+   document.getElementById('src').textContent=`графік ДТЕК для Київської області на ${p.day}.${p.month}.${p.year}, оновлення ${f.update||'—'}. Свіжий графік підтягується щоразу, коли ви відкриваєте гру.`;
+   if(!st.started){reset();if(!totalMines)setMsg('За графіком сьогодні відключень немає. Світло є весь день!');}
+   else setMsg('Завантажено свіжий графік. Натисніть смайлик, щоб грати на ньому.');
+ })
+ .catch(()=>{setMsg('Не вдалося завантажити свіжий графік, тому гра йде на збереженому графіку за 10 листопада.');});
 try{const g=localStorage.getItem('grp');if(g&&DATA[g]){sel.value=g;markGroup(g);}}catch(e){}
 
 // лічильник унікальних гравців: кожен браузер рахується один раз
