@@ -328,14 +328,22 @@ try{const g=localStorage.getItem('grp');if(g&&DATA[g]){sel.value=g;markGroup(g);
 
 // лічильник унікальних гравців: кожен браузер рахується один раз
 (function(){
-  const base='https://abacus.jasoncameron.dev/', ns='tanjatko-svitlo-sapper/players';
+  const bases=['https://abacus.jsn.cam/','https://abacus.jasoncameron.dev/'], ns='tanjatko-svitlo-sapper/players';
+  const box=document.getElementById('players'), out=document.getElementById('pcount');
+  box.hidden=false; out.textContent='…';
   let seen=false;try{seen=localStorage.getItem('counted')==='1';}catch(e){}
-  fetch(base+(seen?'get/':'hit/')+ns).then(r=>r.ok?r.json():Promise.reject()).then(d=>{
-    if(typeof d.value!=='number')return;
-    try{localStorage.setItem('counted','1');}catch(e){}
-    document.getElementById('pcount').textContent=d.value.toLocaleString('uk-UA');
-    document.getElementById('players').hidden=false;
-  }).catch(()=>{});
+  const path=(seen?'get/':'hit/')+ns;
+  const tryAt=i=>{
+    if(i>=bases.length){out.textContent='—';box.title='Лічильник зараз недоступний (можливо, його блокує блокувальник реклами)';return;}
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),6000);
+    fetch(bases[i]+path,{signal:ctl.signal}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{
+      clearTimeout(t);
+      if(typeof d.value!=='number')throw 'bad';
+      try{localStorage.setItem('counted','1');}catch(e){}
+      out.textContent=d.value.toLocaleString('uk-UA');
+    }).catch(()=>{clearTimeout(t);tryAt(i+1);});
+  };
+  tryAt(0);
 })();
 </script>
 </body></html>
