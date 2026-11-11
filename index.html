@@ -345,21 +345,27 @@ fetch('https://raw.githubusercontent.com/Baskerville42/outage-data-ua/main/data/
  .catch(()=>{setMsg('Не вдалося завантажити свіжий графік, тому гра йде на збереженому графіку за 10 листопада.');});
 try{const g=localStorage.getItem('grp');if(g&&DATA[g]){sel.value=g;markGroup(g);}}catch(e){}
 
-// лічильник унікальних гравців: кожен браузер рахується один раз
+// лічильник унікальних гравців: кожен браузер рахується один раз; кілька безкоштовних сервісів по черзі
 (function(){
-  const bases=['https://abacus.jsn.cam/','https://abacus.jasoncameron.dev/'], ns='tanjatko-svitlo-sapper/players';
+  const K='tanjatko-svitlo-sapper-players';
+  const svc=[
+    {id:'mh',  url:(hit)=>`https://countapi.mileshilliard.com/api/v1/${hit?'hit':'get'}/${K}`},
+    {id:'ab2', url:(hit)=>`https://abacus.jsn.cam/${hit?'hit':'get'}/tanjatko-svitlo-sapper/players`},
+    {id:'ab',  url:(hit)=>`https://abacus.jasoncameron.dev/${hit?'hit':'get'}/tanjatko-svitlo-sapper/players`}
+  ];
   const box=document.getElementById('players'), out=document.getElementById('pcount');
   box.hidden=false; out.textContent='…';
-  let seen=false;try{seen=localStorage.getItem('counted')==='1';}catch(e){}
-  const path=(seen?'get/':'hit/')+ns;
+  let done='';try{done=localStorage.getItem('counted_by')||'';}catch(e){}
   const tryAt=i=>{
-    if(i>=bases.length){out.textContent='—';box.title='Лічильник зараз недоступний (можливо, його блокує блокувальник реклами)';return;}
+    if(i>=svc.length){out.textContent='—';box.title='Лічильник зараз недоступний (можливо, його блокує блокувальник реклами)';return;}
+    const sv=svc[i], hit=done!==sv.id;
     const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),6000);
-    fetch(bases[i]+path,{signal:ctl.signal}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{
+    fetch(sv.url(hit),{signal:ctl.signal,cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{
       clearTimeout(t);
-      if(typeof d.value!=='number')throw 'bad';
-      try{localStorage.setItem('counted','1');}catch(e){}
-      out.textContent=d.value.toLocaleString('uk-UA');
+      const v=Number(d&&d.value);
+      if(!Number.isFinite(v))throw 'bad';
+      try{localStorage.setItem('counted_by',sv.id);}catch(e){}
+      out.textContent=v.toLocaleString('uk-UA');
     }).catch(()=>{clearTimeout(t);tryAt(i+1);});
   };
   tryAt(0);
