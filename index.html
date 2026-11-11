@@ -50,22 +50,27 @@ select,.btn{font:13px var(--ui);background:var(--face);color:var(--dk)}
 .board-wrap{margin:4px;overflow-x:auto;padding:0}
 table{border-collapse:collapse;user-select:none;-webkit-user-select:none}
 th{font:700 12px var(--ui);background:var(--face);border:1px solid var(--lo)}
-th.h{writing-mode:vertical-rl;transform:rotate(180deg);padding:6px 2px;height:46px;font-variant-numeric:tabular-nums}
+th.h{writing-mode:vertical-rl;transform:rotate(180deg);padding:4px 0;height:var(--hh,46px);font-size:var(--hf,12px);font-variant-numeric:tabular-nums}
 th.h.now{background:var(--sun)}
 th.g{text-align:left;padding:0 10px;white-space:nowrap;font-size:14px;min-width:84px}
+.compact th.g,.compact th.corner{min-width:0;padding:0 5px;font-size:12px}
+.compact .gw,.compact th.corner .a,.compact th.corner .b{display:none}
 tr.mine th.g{background:var(--mine-row)}
 th.corner{position:relative;font-weight:400;min-width:84px}
 th.corner .a{position:absolute;right:6px;top:4px;font-weight:700}
 th.corner .b{position:absolute;left:8px;bottom:4px;font-weight:700}
 td{padding:0;border:1px solid var(--lo)}
-.c{width:38px;height:36px;display:grid;place-items:center;font:700 22px/1 var(--ui);cursor:pointer;background:var(--face);border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);box-sizing:border-box}
+.c{width:var(--cw,38px);height:var(--ch,36px);display:grid;place-items:center;font:700 var(--cf,22px)/1 var(--ui);cursor:pointer;background:var(--face);border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);box-sizing:border-box}
 tr.mine .c:not(.open){background:#d6d0a6}
 .c:focus-visible{outline:2px dotted var(--dk);outline-offset:-5px}
 .c.open{border:0;background:#bdbdbd;cursor:default}
 tr.mine .c.open{background:#cfc9a0}
 .c.boom{background:var(--boom)!important}
 .c.miss{background:var(--mine)!important}
-.c svg{width:26px;height:26px}
+.c svg{width:var(--cs,26px);height:var(--cs,26px)}
+.compact .c{border-width:2px}
+.rotate-hint{display:none;margin:0 4px 6px;padding:6px 10px;font-size:13px;background:#fff6c2}
+@media (orientation:portrait) and (max-width:700px){.rotate-hint{display:block}}
 .n1{color:#0000f0}.n2{color:#007b00}.n3{color:#e00000}.n4{color:#00007b}.n5{color:#7b0000}.n6{color:#007b7b}.n7{color:#000}.n8{color:#7b7b7b}
 .status{display:flex;align-items:center;gap:10px;margin:6px 4px 2px;padding:6px 10px;font-size:14px;flex-wrap:wrap}
 .status .msg{flex:1;min-width:200px}
@@ -111,6 +116,7 @@ tr.mine .c.open{background:#cfc9a0}
     <div class="panel bevel-in stack" style="justify-content:center"><span class="lbl">Рівень складності</span><b style="font-size:20px">Київ</b></div>
   </div>
 
+  <div class="rotate-hint bevel-in">📱↻ Поверніть телефон горизонтально, щоб бачити весь графік без прокрутки.</div>
   <div class="board-wrap bevel-in"><table id="board"></table></div>
 
   <div class="status bevel-in">
@@ -167,7 +173,7 @@ function build(){
   let h='<thead><tr><th class="corner"><span class="a">Час</span><span class="b">Група</span></th>';
   for(let c=0;c<C;c++)h+=`<th class="h${c===now?' now':''}" scope="col" title="${c===now?'Зараз':''}">${String(c).padStart(2,'0')}-${String(c+1).padStart(2,'0')}</th>`;
   h+='</tr></thead><tbody>';
-  for(let r=0;r<R;r++){h+=`<tr data-r="${r}"><th class="g" scope="row">Група ${GROUPS[r]}</th>`;
+  for(let r=0;r<R;r++){h+=`<tr data-r="${r}"><th class="g" scope="row"><span class="gw">Група </span>${GROUPS[r]}</th>`;
     for(let c=0;c<C;c++)h+=`<td><div class="c" id="c${r}_${c}" data-r="${r}" data-c="${c}" tabindex="0" role="button" aria-label="Група ${GROUPS[r]}, ${c}:00–${c+1}:00"></div></td>`;
     h+='</tr>';}
   t.innerHTML=h+'</tbody>';
@@ -271,6 +277,31 @@ function markGroup(g){document.querySelectorAll('tbody tr').forEach(tr=>tr.class
 sel.onchange=()=>{markGroup(sel.value);try{localStorage.setItem('grp',sel.value);}catch(e){}};
 
 build();reset();
+
+// підганяємо розмір клітинок під екран, щоб уся таблиця влазила без прокрутки
+function fit(){
+  const wrap=document.querySelector('.board-wrap'), tbl=document.getElementById('board');
+  const W=wrap.clientWidth-4, H=window.innerHeight;
+  const compact=W<1000; tbl.classList.toggle('compact',compact);
+  const gcol=compact?40:86;
+  let cw=Math.floor((W-gcol)/C)-1; cw=Math.max(18,Math.min(38,cw));
+  let ch=Math.min(36,cw);
+  const landscapePhone=H<560&&window.innerWidth>H;
+  let hh=compact?34:46;
+  if(landscapePhone){hh=30;ch=Math.max(16,Math.min(ch,Math.floor((H-hh-14)/R)-1));}
+  const st=tbl.style, m=Math.min(cw,ch);
+  st.setProperty('--cw',cw+'px');st.setProperty('--ch',ch+'px');
+  st.setProperty('--cf',Math.round(m*0.6)+'px');st.setProperty('--cs',Math.round(m*0.72)+'px');
+  st.setProperty('--hh',hh+'px');st.setProperty('--hf',(compact?9:12)+'px');
+}
+let fitT;function refit(){clearTimeout(fitT);fitT=setTimeout(fit,80);}
+window.addEventListener('resize',refit);
+let wasLand=window.innerWidth>window.innerHeight;
+window.addEventListener('orientationchange',()=>setTimeout(()=>{fit();
+  const land=window.innerWidth>window.innerHeight;
+  if(land&&!wasLand&&window.innerHeight<560)document.querySelector('.board-wrap').scrollIntoView({block:'start',behavior:'smooth'});
+  wasLand=land;},250));
+fit();
 
 // свіжий графік: відкрите дзеркало сайту ДТЕК (github.com/Baskerville42/outage-data-ua), оновлюється кожні кілька хвилин
 const MONTHS=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
